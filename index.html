@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>오늘의 음식 추천</title>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #333;
+        }
+        .container {
+            background-color: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            color: #ff6b6b;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .hidden {
+            display: none;
+        }
+        select, input, button {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+            width: 80%;
+            font-size: 16px;
+        }
+        button {
+            background-color: #ff6b6b;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 60%;
+        }
+        button:hover {
+            background-color: #ff5252;
+        }
+        .food-image {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 50%;
+            margin: 20px auto;
+            display: block;
+            border: 5px solid #ff6b6b;
+        }
+        .options {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .option-btn {
+            width: auto;
+            min-width: 120px;
+        }
+        .restart-btn {
+            background-color: #4CAF50;
+        }
+        .restart-btn:hover {
+            background-color: #45a049;
+        }
+        .result {
+            background-color: #fff8e1;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>오늘의 음식 추천</h1>
+        
+        <!-- 1단계: 날씨와 기분 입력 -->
+        <div id="step1" class="section">
+            <h2>오늘의 날씨와 기분을 알려주세요</h2>
+            <div>
+                <select id="mealTime">
+                    <option value="" disabled selected>식사 시간대는?</option>
+                    <option value="breakfast">아침</option>
+                    <option value="lunch">점심</option>
+                    <option value="dinner">저녁</option>
+                </select>
+            </div>
+            <div>
+                <select id="weather">
+                    <option value="" disabled selected>오늘의 날씨는?</option>
+                    <option value="sunny">맑음</option>
+                    <option value="cloudy">흐림</option>
+                    <option value="rainy">비</option>
+                    <option value="snowy">눈</option>
+                    <option value="hot">더움</option>
+                    <option value="cold">추움</option>
+                </select>
+            </div>
+            <div>
+                <select id="mood">
+                    <option value="" disabled selected>오늘의 기분은?</option>
+                    <option value="happy">행복함</option>
+                    <option value="sad">우울함</option>
+                    <option value="tired">피곤함</option>
+                    <option value="excited">신남</option>
+                    <option value="stressed">스트레스받음</option>
+                    <option value="hungry">배고픔</option>
+                </select>
+            </div>
+            <button id="submitInfo">추천 받기</button>
+        </div>
+        
+        <!-- 2단계: 음식 추천 결과 -->
+        <div id="step2" class="section hidden">
+            <h2>추천 음식</h2>
+            <div id="foodRecommendation" class="result">
+                <img id="foodImage" class="food-image" src="/api/placeholder/200/200" alt="음식 이미지">
+                <h3 id="foodName">음식명</h3>
+                <p id="foodDescription">음식 설명</p>
+            </div>
+            <div class="options">
+                <button id="likeFood" class="option-btn">마음에 들어요</button>
+                <button id="dislikeFood" class="option-btn">다른 추천 부탁해요</button>
+            </div>
+        </div>
+        
+        <!-- 3단계: 대체 음식 추천 -->
+        <div id="step3" class="section hidden">
+            <h2>다른 추천 음식</h2>
+            <div id="alternativeOptions"></div>
+            <button id="backToMain" class="option-btn">처음으로 돌아가기</button>
+        </div>
+        
+        <!-- 4단계: 디저트 추천 -->
+        <div id="step4" class="section hidden">
+            <h2>디저트 추천</h2>
+            <div id="dessertRecommendation" class="result">
+                <img id="dessertImage" class="food-image" src="/api/placeholder/200/200" alt="디저트 이미지">
+                <h3 id="dessertName">디저트명</h3>
+                <p id="dessertDescription">디저트 설명</p>
+            </div>
+            <button id="restart" class="restart-btn">처음부터 다시하기</button>
+        </div>
+    </div>
+
+    <script>
+        // 음식 데이터베이스 (식사 시간대 정보 추가)
+        const foods = {
+            korean: [
+                {name: "김치찌개", description: "얼큰하고 매콤한 김치찌개는 추운 날이나 기분이 우울할 때 활력을 주는 음식입니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "된장찌개", description: "구수한 된장찌개는 심신의 안정을 주고 건강에도 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch", "dinner"]},
+                {name: "비빔밥", description: "다양한 나물과 고추장이 어우러진 비빔밥은 영양 균형이 좋고 기분을 상쾌하게 해줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "떡볶이", description: "매콤달콤한 떡볶이는 스트레스를 해소하고 기분을 좋게 만들어줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "갈비탕", description: "진한 국물의 갈비탕은 피로 회복에 좋고 기운을 북돋아줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "삼겹살", description: "풍부한 맛의 삼겹살은 특별한 날이나 기분이 좋을 때 더 맛있게 즐길 수 있습니다.", image: "/api/placeholder/200/200", mealTime: ["dinner"]},
+                {name: "순두부찌개", description: "부드러운 순두부의 맛이 일품인 순두부찌개는 속을 편안하게 해줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "죽", description: "부드럽고 소화가 잘 되는 죽은 아침 식사로 완벽합니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast"]},
+                {name: "북엇국", description: "든든한 북엇국은 아침에 활력을 주는 영양 만점 식사입니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+                {name: "미역국", description: "담백하고 깔끔한 미역국은 아침식사로 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+                {name: "불고기", description: "달콤 짭짤한 불고기는 저녁 식사로 인기가 많습니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]}
+            ],
+            japanese: [
+                {name: "초밥", description: "신선한 초밥은 기분이 좋은 날 특별한 경험을 선사합니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "라멘", description: "따뜻한 국물의 라멘은 비 오는 날이나 피곤할 때 위로가 됩니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "돈카츠", description: "바삭한 돈카츠는 스트레스가 많은 날 만족감을 줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "오코노미야키", description: "풍부한 재료의 오코노미야키는 친구들과 나누어 먹기 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "우동", description: "부드러운 면의 우동은 추운 날이나 아플 때 위로가 됩니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "오차즈케", description: "차와 밥을 함께 즐기는 오차즈케는 가벼운 아침 식사로 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast"]},
+                {name: "미소시루", description: "된장 국물의 미소시루는 아침에 몸을 따뜻하게 해줍니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+                {name: "덮밥", description: "다양한 재료를 밥 위에 얹은 덮밥은 점심 식사로 적합합니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "오니기리", description: "간편하게 먹을 수 있는 오니기리는 바쁜 아침에 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]}
+            ],
+            chinese: [
+                {name: "짜장면", description: "고소한 짜장면은 배고픔을 빠르게 해결하고 기분을 좋게 만들어줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "탕수육", description: "바삭달콤한 탕수육은 특별한 날 기분을 좋게 합니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "마라탕", description: "얼얼한 마라탕은 스트레스 해소와 활력 증진에 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "깐풍기", description: "매콤한 깐풍기는 지루한 날 입맛을 돋우는데 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["dinner"]},
+                {name: "양장피", description: "새콤달콤한 양장피는 더운 날 입맛을 돋우는데 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "죽", description: "중국식 죽은 소화가 잘 되어 아침 식사로 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast"]},
+                {name: "딤섬", description: "다양한 종류의 딤섬은 가벼운 아침 식사나 점심으로 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+                {name: "유린기", description: "바삭하고 새콤한 유린기는 저녁 식사에 좋은 메뉴입니다.", image: "/api/placeholder/200/200", mealTime: ["dinner"]},
+                {name: "볶음밥", description: "다양한 재료가 들어간 볶음밥은 든든한 한 끼가 됩니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "탕면", description: "뜨끈한 국물의 탕면은 아침에 몸을 깨우는데 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]}
+            ],
+            western: [
+                {name: "파스타", description: "다양한 맛의 파스타는 기분 전환이 필요할 때 좋은 선택입니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "피자", description: "치즈가 풍부한 피자는 친구들과 즐기기 좋고 기분을 좋게 합니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "스테이크", description: "풍부한 맛의 스테이크는 특별한 날을 더 특별하게 만들어줍니다.", image: "/api/placeholder/200/200", mealTime: ["dinner"]},
+                {name: "함박스테이크", description: "부드러운 함박스테이크는 위로가 필요한 날 따뜻함을 줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "리조또", description: "크리미한 리조또는 편안함과 안정감을 줍니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+                {name: "샌드위치", description: "다양한 재료가 들어간 샌드위치는 바쁜 아침에 간편하게 먹을 수 있습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+                {name: "시리얼", description: "바삭한 시리얼과 우유는 영양가 있는 아침 식사입니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast"]},
+                {name: "오믈렛", description: "부드러운 오믈렛은 아침에 단백질을 보충하기 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+                {name: "팬케이크", description: "달콤한 팬케이크는 기분 좋은 아침을 만들어줍니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast"]},
+                {name: "샐러드", description: "신선한 야채로 만든 샐러드는 가벼운 점심으로 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["lunch"]}
+            ]
+        };
+
+        // 디저트 데이터베이스 (식사 시간대 정보 추가)
+        const desserts = [
+            {name: "티라미수", description: "부드러운 마스카포네 치즈와 커피의 조화가 환상적인 디저트입니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+            {name: "초코케이크", description: "달콤한 초콜릿 케이크는 기분을 좋게 만들어주는 클래식한 디저트입니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+            {name: "마카롱", description: "다양한 맛과 색상의 마카롱은 기분 전환에 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch", "dinner"]},
+            {name: "빙수", description: "시원한 빙수는 더운 날 최고의 간식입니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+            {name: "아이스크림", description: "부드럽고 달콤한 아이스크림은 언제 먹어도 기분이 좋아집니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]},
+            {name: "타르트", description: "상큼한 과일 타르트는 식사 후 입맛을 개운하게 해줍니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch", "dinner"]},
+            {name: "붕어빵", description: "따뜻한 붕어빵은 추운 날 손을 녹이고 마음까지 따뜻하게 해줍니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+            {name: "요거트", description: "신선한 요거트는 아침 식사 후 가볍게 즐기기 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast"]},
+            {name: "과일 샐러드", description: "신선한 과일로 만든 샐러드는 아침에 활력을 줍니다.", image: "/api/placeholder/200/200", mealTime: ["breakfast", "lunch"]},
+            {name: "푸딩", description: "부드러운 푸딩은 가벼운 디저트로 좋습니다.", image: "/api/placeholder/200/200", mealTime: ["lunch", "dinner"]}
+        ];
+
+        // 날씨와 기분, 식사 시간에 따른 음식 추천 로직
+        function recommendFood(mealTime, weather, mood) {
+            let cuisineType;
+            let filteredFoods;
+            
+            // 날씨와 기분에 따른 요리 유형 결정
+            if ((weather === "rainy" || weather === "cloudy") && (mood === "sad" || mood === "tired")) {
+                cuisineType = "korean"; // 비/흐림 + 우울/피곤 -> 한식
+            } else if ((weather === "cold" || weather === "snowy") && (mood === "tired" || mood === "stressed")) {
+                cuisineType = "japanese"; // 추움/눈 + 피곤/스트레스 -> 일식
+            } else if ((weather === "hot" || weather === "sunny") && (mood === "happy" || mood === "excited")) {
+                cuisineType = "chinese"; // 더움/맑음 + 행복/신남 -> 중식
+            } else if (mood === "hungry" || mood === "stressed") {
+                cuisineType = "western"; // 배고픔/스트레스 -> 양식
+            } else {
+                // 그 외의 경우 랜덤 선택
+                const cuisines = ["korean", "japanese", "chinese", "western"];
+                cuisineType = cuisines[Math.floor(Math.random() * cuisines.length)];
+            }
+            
+            // 선택된 요리 유형에서 식사 시간에 맞는 음식 필터링
+            const foodList = foods[cuisineType];
+            
+            // 식사 시간별 필터링
+            if (mealTime === "breakfast") {
+                // 아침에 적합한 음식 필터링
+                filteredFoods = foodList.filter(food => food.mealTime.includes("breakfast"));
+            } else if (mealTime === "lunch") {
+                // 점심에 적합한 음식 필터링
+                filteredFoods = foodList.filter(food => food.mealTime.includes("lunch"));
+            } else if (mealTime === "dinner") {
+                // 저녁에 적합한 음식 필터링
+                filteredFoods = foodList.filter(food => food.mealTime.includes("dinner"));
+            }
+            
+            // 필터링된 음식이 없는 경우 전체 리스트에서 선택
+            if (!filteredFoods || filteredFoods.length === 0) {
+                filteredFoods = foodList;
+            }
+            
+            return filteredFoods[Math.floor(Math.random() * filteredFoods.length)];
+        }
+
+        // 디저트 추천 함수 (식사 시간대 고려)
+        function recommendDessert(mealTime) {
+            // 식사 시간에 맞는 디저트 필터링
+            let filteredDesserts = desserts.filter(dessert => dessert.mealTime.includes(mealTime));
+            
+            // 필터링된 디저트가 없는 경우 전체 목록에서 선택
+            if (!filteredDesserts || filteredDesserts.length === 0) {
+                filteredDesserts = desserts;
+            }
+            
+            return filteredDesserts[Math.floor(Math.random() * filteredDesserts.length)];
+        }
+
+        // 현재 추천된 음식과 대체 옵션을 저장할 변수
+        let currentFood;
+        let usedFoods = [];
+
+        // 음식 추천 함수 (이미 추천된 음식 제외)
+        function getNewRecommendation(weather, mood) {
+            let recommendation;
+            do {
+                recommendation = recommendFood(weather, mood);
+            } while (usedFoods.some(food => food.name === recommendation.name));
+            
+            usedFoods.push(recommendation);
+            return recommendation;
+        }
+
+        // 대체 음식 3개 추천 함수
+        function getAlternativeOptions(weather, mood) {
+            const alternatives = [];
+            for (let i = 0; i < 3; i++) {
+                let newFood = getNewRecommendation(weather, mood);
+                alternatives.push(newFood);
+            }
+            return alternatives;
+        }
+
+        // DOM 요소 참조
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+        const step3 = document.getElementById('step3');
+        const step4 = document.getElementById('step4');
+        
+        // 이벤트 리스너 설정
+        document.getElementById('submitInfo').addEventListener('click', function() {
+            const weather = document.getElementById('weather').value;
+            const mood = document.getElementById('mood').value;
+            
+            if (weather && mood) {
+                // 기존 추천 초기화
+                usedFoods = [];
+                
+                // 새 음식 추천
+                currentFood = getNewRecommendation(weather, mood);
+                
+                // 화면에 표시
+                document.getElementById('foodName').textContent = currentFood.name;
+                document.getElementById('foodDescription').textContent = currentFood.description;
+                document.getElementById('foodImage').src = currentFood.image;
+                document.getElementById('foodImage').alt = currentFood.name;
+                
+                // 화면 전환
+                step1.classList.add('hidden');
+                step2.classList.remove('hidden');
+            } else {
+                alert('날씨와 기분을 모두 선택해주세요.');
+            }
+        });
+        
+        // 추천 음식이 마음에 든 경우
+        document.getElementById('likeFood').addEventListener('click', function() {
+            // 디저트 추천
+            const dessert = recommendDessert();
+            document.getElementById('dessertName').textContent = dessert.name;
+            document.getElementById('dessertDescription').textContent = dessert.description;
+            document.getElementById('dessertImage').src = dessert.image;
+            document.getElementById('dessertImage').alt = dessert.name;
+            
+            // 화면 전환
+            step2.classList.add('hidden');
+            step4.classList.remove('hidden');
+        });
+        
+        // 추천 음식이 마음에 들지 않는 경우
+        document.getElementById('dislikeFood').addEventListener('click', function() {
+            const weather = document.getElementById('weather').value;
+            const mood = document.getElementById('mood').value;
+            
+            // 대체 음식 3개 추천
+            const alternatives = getAlternativeOptions(weather, mood);
+            
+            // 대체 옵션 HTML 생성
+            const alternativeOptionsContainer = document.getElementById('alternativeOptions');
+            alternativeOptionsContainer.innerHTML = '';
+            
+            alternatives.forEach(food => {
+                const foodDiv = document.createElement('div');
+                foodDiv.className = 'result';
+                foodDiv.innerHTML = `
+                    <img class="food-image" src="${food.image}" alt="${food.name}">
+                    <h3>${food.name}</h3>
+                    <p>${food.description}</p>
+                    <button class="select-alternative option-btn">이걸로 할게요</button>
+                `;
+                alternativeOptionsContainer.appendChild(foodDiv);
+            });
+            
+            // 대체 음식 선택 이벤트 리스너 추가
+            document.querySelectorAll('.select-alternative').forEach((button, index) => {
+                button.addEventListener('click', function() {
+                    currentFood = alternatives[index];
+                    
+                    // 디저트 추천
+                    const dessert = recommendDessert();
+                    document.getElementById('dessertName').textContent = dessert.name;
+                    document.getElementById('dessertDescription').textContent = dessert.description;
+                    document.getElementById('dessertImage').src = dessert.image;
+                    document.getElementById('dessertImage').alt = dessert.name;
+                    
+                    // 화면 전환
+                    step3.classList.add('hidden');
+                    step4.classList.remove('hidden');
+                });
+            });
+            
+            // 화면 전환
+            step2.classList.add('hidden');
+            step3.classList.remove('hidden');
+        });
+        
+        // 처음으로 돌아가기
+        document.getElementById('backToMain').addEventListener('click', function() {
+            resetApp();
+        });
+        
+        // 다시하기
+        document.getElementById('restart').addEventListener('click', function() {
+            resetApp();
+        });
+        
+        // 앱 초기화 함수
+        function resetApp() {
+            // 모든 섹션 숨기기
+            step2.classList.add('hidden');
+            step3.classList.add('hidden');
+            step4.classList.add('hidden');
+            
+            // 첫 화면 표시
+            step1.classList.remove('hidden');
+            
+            // 입력값 초기화
+            document.getElementById('weather').selectedIndex = 0;
+            document.getElementById('mood').selectedIndex = 0;
+            
+            // 사용된 음식 목록 초기화
+            usedFoods = [];
+        }
+    </script>
+</body>
+</html>
